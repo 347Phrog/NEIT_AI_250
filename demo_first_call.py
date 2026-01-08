@@ -1,4 +1,3 @@
-from http import client
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -11,4 +10,4 @@ response = client.responses.create(
     input="In 2 sentences, define an applied AI for an application"
 )
 
-print(response)
+print(response.output_text)

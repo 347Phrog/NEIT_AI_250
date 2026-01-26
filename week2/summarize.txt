@@ -1,0 +1,2 @@
+The same as week one's assignemnt except for the fact that I used both Google Cloud API, and HugginFace API to summarzie -the same- input.
+

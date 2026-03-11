@@ -64,7 +64,7 @@ else:
 IMG_HEIGHT = 150
 IMG_WIDTH = 150
 BATCH_SIZE = 32
-EPOCHS = 10  # Start with 10, increase to 20-30 for better results
+EPOCHS = 20  # Start with 10, increase to 20-30 for better results
 
 # ============================================================================
 # PART 2: BUILD YOUR CNN MODEL
@@ -95,18 +95,24 @@ def create_student_cnn():
         # Add: Conv2D(32 filters, 3x3 kernel, relu activation)
         # Add: MaxPooling2D(2x2)
         # YOUR CODE HERE:
+        layers.Conv2D(64, (3, 3), activation='relu'),
+        layers.MaxPooling2D((2, 2)),
         
         
         # TODO 3b: Second convolutional block
         # Add: Conv2D(64 filters, 3x3 kernel, relu activation)
         # Add: MaxPooling2D(2x2)
         # YOUR CODE HERE:
+        layers.Conv2D(128, (3, 3), activation='relu'),
+        layers.MaxPooling2D((2, 2)),
         
         
         # TODO 3c: Third convolutional block
         # Add: Conv2D(128 filters, 3x3 kernel, relu activation)
         # Add: MaxPooling2D(2x2)
         # YOUR CODE HERE:
+        layers.Conv2D(256, (3, 3), activation='relu'),
+        layers.MaxPooling2D((2, 2)),
         
         
         # TODO 3d: Flatten and dense layers
@@ -114,13 +120,16 @@ def create_student_cnn():
         # Add: Dense(128, activation='relu')
         # Add: Dropout(0.5)
         # YOUR CODE HERE:
+        layers.Flatten(),
+        layers.Dense(128, activation='relu'),
+        layers.Dropout(0.5),
         
         
         # TODO 3e: Output layer
         # Add: Dense(number_of_categories, activation='softmax')
         # Hint: How many categories do we have?
         # YOUR CODE HERE:
-        
+        layers.Dense(len(categories), activation='softmax')
     ])
     
     return model
@@ -146,6 +155,12 @@ print()
 #   loss='categorical_crossentropy'  (why this loss function?)
 #   metrics=['accuracy']
 # YOUR CODE HERE:
+
+model.compile(
+optimizer='adam',
+loss='categorical_crossentropy',
+metrics=['accuracy']
+)
 
 
 print("✅ Model compiled!")
@@ -186,21 +201,31 @@ test_datagen = ImageDataGenerator(rescale=1./255)
 # YOUR CODE HERE:
 train_generator = train_datagen.flow_from_directory(
     # TODO: Fill in parameters
-    # directory=?,
-    # target_size=(?, ?),
-    # batch_size=?,
-    # class_mode=?,
-    # subset=?
+    directory=train_dir,
+    target_size=(IMG_HEIGHT, IMG_WIDTH),
+    batch_size=BATCH_SIZE,
+    class_mode='categorical',
+    subset='training'
 )
 
 validation_generator = train_datagen.flow_from_directory(
     # TODO: Fill in parameters (similar to train_generator)
     # subset should be 'validation' this time
+    directory=train_dir,
+    target_size=(IMG_HEIGHT, IMG_WIDTH),
+    batch_size=BATCH_SIZE,
+    class_mode='categorical',
+    subset='validation'
 )
 
 test_generator = test_datagen.flow_from_directory(
     # TODO: Fill in parameters
     # No validation_split for test data!
+    test_dir,
+    target_size=(IMG_HEIGHT, IMG_WIDTH),
+    batch_size=BATCH_SIZE,
+    class_mode='categorical',
+    shuffle=False
 )
 
 print(f"✅ Training samples: {train_generator.samples}")
@@ -223,7 +248,20 @@ print()
 #   - epochs=EPOCHS
 #   - validation_data=validation_generator
 # YOUR CODE HERE:
-history = # TODO: Fill this in
+history = model.fit(
+    train_generator,
+    epochs=EPOCHS,
+    validation_data=validation_generator
+)
+final_train_loss = history.history['loss'][-1]
+final_val_loss = history.history['val_loss'][-1]
+final_train_acc = history.history['accuracy'][-1]
+final_val_acc = history.history['val_accuracy'][-1]
+
+print(f"Final Train Loss: {final_train_loss:.4f}")
+print(f"Final Val Loss:   {final_val_loss:.4f}")
+print(f"Final Train Acc:  {final_train_acc * 100:.2f}%")
+print(f"Final Val Acc:    {final_val_acc * 100:.2f}%")
 
 
 print()
@@ -239,7 +277,7 @@ print("-" * 70)
 # TODO 8: Evaluate on test data
 # Use model.evaluate()
 # YOUR CODE HERE:
-test_loss, test_accuracy = # TODO: Fill this in
+test_loss, test_accuracy = model.evaluate(test_generator)
 
 print(f"\n📊 Your Test Accuracy: {test_accuracy * 100:.2f}%")
 print(f"📊 Your Test Loss: {test_loss:.4f}")
@@ -266,11 +304,21 @@ print("-" * 70)
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
 # Accuracy plot
-# TODO: Plot training and validation accuracy
-
+ax1.plot(history.history['accuracy'], label='Train Accuracy')
+ax1.plot(history.history['val_accuracy'], label='Validation Accuracy')
+ax1.set_title('Model Accuracy')
+ax1.set_xlabel('Epoch')
+ax1.set_ylabel('Accuracy')
+ax1.legend()
 
 # Loss plot  
 # TODO: Plot training and validation loss
+ax2.plot(history.history['loss'], label='Train Loss')
+ax2.plot(history.history['val_loss'], label='Validation Loss')
+ax2.set_title('Model Loss')
+ax2.set_xlabel('Epoch')
+ax2.set_ylabel('Loss')
+ax2.legend()
 
 
 plt.tight_layout()
@@ -290,7 +338,7 @@ sample_images, sample_labels = next(test_generator)
 
 # TODO 10: Make predictions on first 6 images
 # YOUR CODE HERE:
-predictions = # TODO: Use model.predict()
+predictions = model.predict(sample_images[:6])
 
 # Visualize predictions
 fig, axes = plt.subplots(2, 3, figsize=(15, 10))
@@ -307,9 +355,9 @@ for i in range(6):
     
     # TODO 11: Get true and predicted labels
     true_label = class_labels[np.argmax(sample_labels[i])]
-    pred_label = # TODO: Get predicted label from predictions[i]
-    confidence = # TODO: Get confidence (max probability) * 100
-    
+    pred_label = class_labels[np.argmax(predictions[i])]
+    confidence = np.max(predictions[i]) * 100
+
     # Color code: green if correct, red if wrong
     color = 'green' if true_label == pred_label else 'red'
     axes[i].set_title(f'True: {true_label}\nPred: {pred_label} ({confidence:.1f}%)',
@@ -330,6 +378,8 @@ print("-" * 70)
 # TODO 12: Save your trained model
 # Use model.save() with filename 'my_environmental_classifier.h5'
 # YOUR CODE HERE:
+model.save('my_environmental_classifier.h5')
+
 
 
 print("✅ Model saved! You'll use this next week for disaster detection.")
